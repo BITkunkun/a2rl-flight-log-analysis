@@ -1,0 +1,15 @@
+{
+  "real_log": "data/real.csv",
+  "sitl_log": "data/sitl.csv",
+  "out_root": "reports",
+  "out_name": "real_sitl_comparison",
+  "real_label": "实飞",
+  "sitl_label": "SITL",
+  "real_flags": [12803, 12291],
+  "sitl_motion_speed": 0.3,
+  "sitl_motion_displacement": 0.2,
+  "compare_window_s": null,
+  "max_plot_points": 7000,
+  "gates": [[4.0, 0.0, -1.47], [0.0, 2.0, -1.47], [-4.0, 0.0, -1.47], [-2.0, -1.5, -1.47], [0.0, 0.0, -1.47], [2.0, -1.5, -1.47]],
+  "gate_labels": ["Gate 01", "Gate 02", "Gate 03", "Gate 04", "Gate 05", "Gate 06"]
+}

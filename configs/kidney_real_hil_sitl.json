@@ -1,0 +1,12 @@
+{
+  "track_config": "configs/sitl_kidney_track.json",
+  "compare_output_root": "reports/real_hil_sitl_comparison",
+  "real_control_flags": [12803, 12291],
+  "pairs": [
+    {
+      "hil_csv": "data/hil_truth.csv",
+      "sitl_csv": "data/sitl.csv",
+      "real_csv": "data/real.csv"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "hand_log": "data/hand.csv",
+  "sitl_log": "data/sitl.csv",
+  "out_root": "reports",
+  "out_name": "hand_sitl_comparison",
+  "hand_label": "手持（无桨）",
+  "sitl_label": "SITL",
+  "hand_control_flags": [12803, 12291],
+  "motion_speed_mps": 0.3,
+  "motion_displacement_m": 0.2,
+  "max_plot_points": 6000,
+  "prediction_hand_residual_weight": 0.2,
+  "prediction_motor_residual_weight": 0.1,
+  "motor_trajectory_prediction_hz": 50.0,
+  "motor_trajectory_response_gain": 0.35,
+  "motor_trajectory_differential_weight": 0.35,
+  "motor_trajectory_min_speed_scale": 0.7,
+  "motor_trajectory_max_speed_scale": 1.3,
+  "motor_trajectory_smoothing_s": 0.3,
+  "calibration_metrics": null,
+  "gates": [[4.0, 0.0, -1.47], [0.0, 2.0, -1.47], [-4.0, 0.0, -1.47], [-2.0, -1.5, -1.47], [0.0, 0.0, -1.47], [2.0, -1.5, -1.47]],
+  "gate_labels": ["Gate 01", "Gate 02", "Gate 03", "Gate 04", "Gate 05", "Gate 06"]
+}
