@@ -316,8 +316,8 @@ def normalize_log_frame(path: Path, domain: str = "real") -> tuple[pd.DataFrame,
     else:
         raise ValueError(f"{path} needs timeUs or timeS.")
 
-    pos_sources = ("extPos", "pos", "ekf_pos") if domain == "sitl" else ("pos", "extPos", "ekf_pos")
-    vel_sources = ("extVel", "vel", "ekf_vel") if domain == "sitl" else ("vel", "extVel", "ekf_vel")
+    pos_sources = ("extPos", "pos", "ekf_pos") if domain == "sitl" else ("extPos",)
+    vel_sources = ("extVel", "vel", "ekf_vel") if domain == "sitl" else ("extVel",)
     pos_prefix, pos_cols = first_vector(available, pos_sources, 3)
     vel_prefix, vel_cols = first_vector(available, vel_sources, 3)
     pos_sp_prefix, pos_sp_cols = first_vector(available, ("posSp",), 3)
@@ -327,9 +327,9 @@ def normalize_log_frame(path: Path, domain: str = "real") -> tuple[pd.DataFrame,
     att_prefix, att_cols = first_vector(available, ("extAtt", "ekf_att"), 3)
 
     if not pos_cols:
-        raise ValueError(f"{path} has no position vector columns.")
+        raise ValueError(f"{path} has no required position vector columns: {pos_sources}.")
     if not vel_cols:
-        raise ValueError(f"{path} has no velocity vector columns.")
+        raise ValueError(f"{path} has no required velocity vector columns: {vel_sources}.")
     if not quat_cols and not att_cols:
         raise ValueError(f"{path} has no attitude columns.")
 
@@ -343,15 +343,17 @@ def normalize_log_frame(path: Path, domain: str = "real") -> tuple[pd.DataFrame,
     for axis, col in zip(("x", "y", "z"), vel_sp_cols):
         df[f"vel_sp_{axis}_mps"] = pd.to_numeric(raw[col], errors="coerce")
 
-    if quat_cols:
-        euler = quat_to_euler_rad(raw[quat_cols].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float))
-        attitude_source = quat_cols
-    else:
+    if att_cols and domain in ("real", "sitl"):
         att = raw[att_cols].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
         if np.nanmedian(np.abs(att)) > math.pi * 1.5:
             att = np.deg2rad(att)
         euler = att
         attitude_source = att_cols
+    elif quat_cols:
+        euler = quat_to_euler_rad(raw[quat_cols].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float))
+        attitude_source = quat_cols
+    else:
+        raise ValueError(f"{path} has no attitude columns.")
     df["roll_rad"] = euler[:, 0]
     df["pitch_rad"] = euler[:, 1]
     df["yaw_rad"] = wrap_pi(euler[:, 2])

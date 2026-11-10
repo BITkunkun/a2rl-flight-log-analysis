@@ -38,13 +38,16 @@ def load_frame(path: Path, kind: str) -> tuple[pd.DataFrame, dict]:
     """Read HIL truth, SITL, or flight CSV using explicit signal sources."""
     if kind not in ("HIL", "SITL", "REAL"):
         raise ValueError(f"未知数据类型: {kind}")
-    position = "extPos" if kind == "SITL" else "pos"
-    velocity = "extVel" if kind == "SITL" else "vel"
+    position = "extPos" if kind in ("SITL", "REAL") else "pos"
+    velocity = "extVel" if kind in ("SITL", "REAL") else "vel"
     command = "command" if kind == "HIL" else "motor"
     header = pd.read_csv(path, nrows=0).columns
     time_col = "timeS" if "timeS" in header else "timeUs"
     required = [time_col] + [f"{p}[{i}]" for p in (position, velocity) for i in range(3)]
-    required += [f"quat[{i}]" for i in range(4)]
+    ext_att = [f"extAtt[{i}]" for i in range(3)]
+    use_ext_att = kind in ("SITL", "REAL") and set(ext_att).issubset(header)
+    attitude = ext_att if use_ext_att else [f"quat[{i}]" for i in range(4)]
+    required += attitude
     missing = sorted(set(required) - set(header))
     if missing:
         raise ValueError(f"{path}: 缺少必要字段: {', '.join(missing)}")
@@ -58,9 +61,17 @@ def load_frame(path: Path, kind: str) -> tuple[pd.DataFrame, dict]:
     time = raw[time_col].to_numpy(dtype=float) / (1_000_000.0 if time_col == "timeUs" else 1.0)
     if not np.all(np.diff(time) > 0):
         raise ValueError(f"{path}: {time_col} 必须严格递增；请先检查时间重置或重复")
-    quat = raw[[f"quat[{i}]" for i in range(4)]].to_numpy(dtype=float)
-    if np.any(np.linalg.norm(quat, axis=1) < 1e-9):
-        raise ValueError(f"{path}: 存在无效的零四元数")
+    if use_ext_att:
+        euler = raw[attitude].to_numpy(dtype=float)
+        if np.nanmedian(np.abs(euler)) > np.pi * 1.5:
+            euler = np.deg2rad(euler)
+        attitude_source = "extAtt (Euler; unit inferred)"
+    else:
+        quat = raw[attitude].to_numpy(dtype=float)
+        if np.any(np.linalg.norm(quat, axis=1) < 1e-9):
+            raise ValueError(f"{path}: 存在无效的零四元数")
+        euler = quat_to_euler_rad(quat)
+        attitude_source = "quat [w,x,y,z] (assumed)"
 
     frame = pd.DataFrame({"time_s": time - time[0]})
     for i, axis in enumerate("xyz"):
@@ -69,7 +80,7 @@ def load_frame(path: Path, kind: str) -> tuple[pd.DataFrame, dict]:
     frame["height_m"] = -frame["pos_z_m"]
     frame["speed_xy_mps"] = np.hypot(frame["vel_x_mps"], frame["vel_y_mps"])
     frame["speed_3d_mps"] = np.sqrt(sum(frame[f"vel_{axis}_mps"] ** 2 for axis in "xyz"))
-    euler = np.rad2deg(quat_to_euler_rad(quat))
+    euler = np.rad2deg(euler)
     for i, axis in enumerate(("roll", "pitch", "yaw")):
         frame[f"{axis}_deg"] = euler[:, i]
     for source, target in ((command, "command"), ("omega", "omega")):
@@ -86,7 +97,7 @@ def load_frame(path: Path, kind: str) -> tuple[pd.DataFrame, dict]:
         "median_sample_interval_s": float(np.median(np.diff(time))),
         "max_sample_interval_s": float(np.max(np.diff(time))),
         "position_source": position, "velocity_source": velocity,
-        "attitude_source": "quat [w,x,y,z] (assumed)",
+        "attitude_source": attitude_source,
         "command_source": command, "omega_source": "omega",
         "coordinate_assumption": "NED, height = -z; meters and seconds",
         "motor_units_and_channel_mapping": "unverified; raw values only",

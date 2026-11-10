@@ -32,13 +32,13 @@ python -m pip install -r requirements.txt
 
 | 数据 | 时间 | 位置和速度 | 姿态及其他字段 |
 | --- | --- | --- | --- |
-| SITL 单独分析 | `timeS` 或 `timeUs` | 优先 `extPos[0..2]` / `extVel[0..2]`，分别回退到 `pos/vel`、`ekf_pos/ekf_vel` | `quat[0..3]`，或 `extAtt` / `ekf_att`；可选设定值、电机和转速 |
+| SITL 单独分析 | `timeS` 或 `timeUs` | 优先 `extPos[0..2]` / `extVel[0..2]`，分别回退到 `pos/vel`、`ekf_pos/ekf_vel` | 优先 `extAtt[0..2]`，否则 `quat[0..3]` 或 `ekf_att`；可选设定值、电机和转速 |
 | HIL truth | `timeS` 或 `timeUs` | `pos[0..2]` / `vel[0..2]` | `quat[0..3]`；可选 `command[0..3]`、`omega[0..3]` |
-| 通用对比中的 SITL | `timeS` 或 `timeUs` | `extPos[0..2]` / `extVel[0..2]` | `quat[0..3]`；可选 `motor[0..3]`、`omega[0..3]` |
-| 通用对比中的实飞 | `timeS` 或 `timeUs` | `pos[0..2]` / `vel[0..2]` | `quat[0..3]`；控制段三方对比还需要 `flightModeFlags` |
+| 通用对比中的 SITL | `timeS` 或 `timeUs` | `extPos[0..2]` / `extVel[0..2]` | 优先 `extAtt[0..2]`，否则 `quat[0..3]`；可选 `motor[0..3]`、`omega[0..3]` |
+| 通用对比中的实飞 | `timeS` 或 `timeUs` | `extPos[0..2]` / `extVel[0..2]` | 优先 `extAtt[0..2]`，否则 `quat[0..3]`；控制段三方对比还需要 `flightModeFlags` |
 | 无桨手持 | `timeS` 或 `timeUs` | 优先 `extPos/extVel`，回退 `ekf_pos/ekf_vel`、`pos/vel` | `quat` 或 `extAtt/ekf_att`；可选陀螺仪、电机和 `omegaUnfiltered` |
 
-实飞/SITL 专项对比的实飞侧优先 `pos/vel`，SITL 侧优先 `extPos/extVel`，允许按脚本中的顺序回退。手持对比的电机预测需要相应四路电机字段。
+实飞/SITL 专项对比的实飞侧使用 `extPos/extVel`，字段缺失时会报错；SITL 侧优先 `extPos/extVel`，允许按脚本中的顺序回退。实飞和 SITL 姿态优先采用外部姿态 `extAtt`，否则使用四元数 `quat`。手持对比的电机预测需要相应四路电机字段。
 
 赛道使用 NED 坐标，Z 向下；坐标单位为米，时间为秒，四元数按 `[w, x, y, z]` 解释。请在使用前确认自己的日志和赛道使用相同的坐标约定。HIL 使用电脑仿真的 truth CSV，不需要 Blackbox。
 
@@ -108,7 +108,7 @@ HIL 单独分析的图最多显示前 25 秒；通用对比的图按最短输入
 
 各日志以自己的分析段起点计时，不代表物理事件已经同步；不应将同一时间点的差异直接当作同步跟踪误差。默认过门图匹配一组有序门，可能包含反向或跨圈匹配，不能代表全程逐圈成功率。门框默认 1.5 m × 1.5 m，按位置点判定，未扣除机体尺寸。
 
-设定值差异只有在确认设定值确为动态参考后才能作为跟踪误差；电机信号的单位、归一化方式和通道映射也应先核实。实飞 `pos/vel` 是状态估计，不能直接视为无误差真值。
+设定值差异只有在确认设定值确为动态参考后才能作为跟踪误差；电机信号的单位、归一化方式和通道映射也应先核实。实飞 `extPos/extVel` 是外部定位记录，不能直接视为无误差真值。
 
 ## 验证
 

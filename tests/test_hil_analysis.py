@@ -22,7 +22,7 @@ class HilAnalysisTests(unittest.TestCase):
                 stack.enter_context(patch(f"compare_hil_sitl.{name}"))
             for kind, count in (("HIL", 7), ("SITL", 6), ("REAL", 8)):
                 data = {"timeS": list(range(count))}
-                for prefix in (("extPos", "extVel") if kind == "SITL" else ("pos", "vel")):
+                for prefix in (("extPos", "extVel") if kind in ("SITL", "REAL") else ("pos", "vel")):
                     for i in range(3):
                         data[f"{prefix}[{i}]"] = [float(i)] * count
                 for i in range(4):
@@ -62,7 +62,7 @@ class HilAnalysisTests(unittest.TestCase):
             pair = {}
             for kind, count in (("HIL", 3), ("SITL", 4), ("REAL", 5)):
                 data = {"timeS": list(range(count))}
-                for prefix in (("extPos", "extVel") if kind == "SITL" else ("pos", "vel")):
+                for prefix in (("extPos", "extVel") if kind in ("SITL", "REAL") else ("pos", "vel")):
                     for i in range(3):
                         data[f"{prefix}[{i}]"] = [float(i)] * count
                 for i in range(4):
@@ -92,7 +92,7 @@ class HilAnalysisTests(unittest.TestCase):
             pair = {}
             for kind, count in (("HIL", 6), ("SITL", 5), ("REAL", 4)):
                 path = root / f"{kind}.csv"
-                pos, vel = (("extPos", "extVel") if kind == "SITL" else ("pos", "vel"))
+                pos, vel = (("extPos", "extVel") if kind in ("SITL", "REAL") else ("pos", "vel"))
                 data = {"timeS": list(range(count))}
                 for i in range(3):
                     data[f"{pos}[{i}]"] = [float(t) if i == 0 else (-1. if i == 2 else 0.) for t in range(count)]
@@ -118,8 +118,8 @@ class HilAnalysisTests(unittest.TestCase):
 
     def test_combinations_use_shortest_time_and_keep_full_statistics(self):
         def write_log(path, kind, count):
-            pos = "extPos" if kind == "SITL" else "pos"
-            vel = "extVel" if kind == "SITL" else "vel"
+            pos = "extPos" if kind in ("SITL", "REAL") else "pos"
+            vel = "extVel" if kind in ("SITL", "REAL") else "vel"
             data = {"timeS": list(range(count))}
             for prefix in (pos, vel):
                 for i in range(3):
@@ -205,8 +205,16 @@ class HilAnalysisTests(unittest.TestCase):
             pd.DataFrame(data).to_csv(path, index=False)
             hil, _ = load_frame(path, "HIL")
             sitl, _ = load_frame(path, "SITL")
+            real, real_profile = load_frame(path, "REAL")
             self.assertEqual(hil.pos_x_m.iloc[0], 1.)
             self.assertEqual(sitl.pos_x_m.iloc[0], 3.)
+            self.assertEqual(real.pos_x_m.iloc[0], 3.)
+            self.assertEqual(real.vel_x_mps.iloc[0], 4.)
+            self.assertEqual(real_profile["position_source"], "extPos")
+            self.assertEqual(real_profile["velocity_source"], "extVel")
+            pd.DataFrame(data).drop(columns=["extVel[2]"]).to_csv(path, index=False)
+            with self.assertRaisesRegex(ValueError, "extVel"):
+                load_frame(path, "REAL")
             self.assertEqual(hil.time_s.tolist(), [0., 1.])
             data["timeS"] = [10., 10.]
             pd.DataFrame(data).to_csv(path, index=False)
