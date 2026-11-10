@@ -1,4 +1,4 @@
-"""Analyze HIL simulator truth CSVs listed in configs/hil_sitl_kidney.json."""
+"""Analyze HIL CSVs listed in configs/hil_sitl_kidney.json."""
 from __future__ import annotations
 
 import argparse
@@ -11,8 +11,8 @@ from hil_analysis_common import (
 from track_3d import plot_trajectory_gate_3d
 
 
-def analyze(path, output_root, gates, labels, track_path):
-    frame, profile = load_frame(path, "HIL")
+def analyze(path, output_root, gates, labels, track_path, hil_source="computer_truth"):
+    frame, profile = load_frame(path, "HIL", hil_source=hil_source)
     passages = passages_for(frame, gates, labels, "HIL")
     summary = summarize(frame, profile, passages)
     plot_end = min(25.0, float(frame.time_s.iloc[-1]))
@@ -60,7 +60,8 @@ def analyze(path, output_root, gates, labels, track_path):
         f"整段时长 {summary['duration_s']:.3f} s；水平速度均值 {summary['speed_xy_mean_mps']:.3f} m/s；"
         f"第一组有序门匹配 {summary['ordered_gates_passed']}/{summary['ordered_gates_total']}，"
         f"其中正向 {summary['ordered_gates_forward']}。\n\n"
-        "坐标假定为 NED、四元数顺序假定为 w,x,y,z。门框为 1.5 m × 1.5 m，按位置点计算，"
+        f"数据来源：{profile['hil_source']}；位置 {profile['position_source']}，速度 {profile['velocity_source']}，"
+        f"姿态 {profile['attitude_source']}。坐标假定为 NED。门框为 1.5 m × 1.5 m，按位置点计算，"
         "不考虑机体尺寸；脚本只匹配一组有序门，允许反向，不能作为全程逐圈成功率。"
         "如门未匹配，后续门仍可能被匹配，不能把该序列视为完整圈。\n\n"
         "速度、高度等是整段统计，包含起飞；电机数据按原值展示，单位和通道映射待确认。\n\n"
@@ -77,8 +78,9 @@ def analyze(path, output_root, gates, labels, track_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="按配置批量分析 HIL truth CSV")
+    parser = argparse.ArgumentParser(description="按配置批量分析 HIL CSV")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG), help="配置 JSON；路径相对工作区根目录")
+    parser.add_argument("--hil-source", choices=("computer_truth", "blackbox_ext"), help="覆盖配置中的 HIL 数据来源")
     args = parser.parse_args()
     config, gates, labels = load_config(args.config)
     setup_plots()
@@ -87,7 +89,8 @@ def main():
         if pair.get("hil_csv"):
             path = resolve_path(pair["hil_csv"])
             if path.resolve() not in seen:
-                analyze(path, resolve_path(config["hil_output_root"]), gates, labels, config["track_config"])
+                analyze(path, resolve_path(config["hil_output_root"]), gates, labels, config["track_config"],
+                        args.hil_source or config.get("hil_source", "computer_truth"))
                 seen.add(path.resolve())
 
 

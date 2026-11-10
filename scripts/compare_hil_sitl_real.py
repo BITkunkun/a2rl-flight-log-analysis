@@ -12,6 +12,7 @@ from hil_analysis_common import ROOT, load_config, resolve_path, setup_plots
 def main():
     parser = argparse.ArgumentParser(description="以实飞控制段为时长基准的 HIL/SITL/实飞三方对比")
     parser.add_argument("--config", default=str(ROOT / "configs" / "kidney_real_hil_sitl.json"), help="三方对比配置")
+    parser.add_argument("--hil-source", choices=("computer_truth", "blackbox_ext"), help="覆盖配置中的 HIL 数据来源")
     args = parser.parse_args()
     config, gates, labels = load_config(args.config)
     output_root = resolve_path(config["compare_output_root"])
@@ -23,7 +24,8 @@ def main():
         if {kind for kind, _, _ in selected_inputs(pair)} != {"HIL", "SITL", "REAL"}:
             raise ValueError("每组必须提供 hil_csv、sitl_csv 和 real_csv")
         datasets, end = compare(pair, output_root, gates, labels, config["track_config"],
-                                real_control_flags=flags, reference_kind="REAL")
+                                real_control_flags=flags, reference_kind="REAL",
+                                hil_source=args.hil_source or config.get("hil_source", "computer_truth"))
         name = Path(pair["real_csv"]).stem
         real = next(item for item in datasets if item["kind"] == "REAL")
         passed = real["plot_passage"].loc[real["plot_passage"].passed]

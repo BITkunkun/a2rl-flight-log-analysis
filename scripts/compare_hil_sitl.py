@@ -46,11 +46,12 @@ def selected_inputs(pair):
     return chosen
 
 
-def compare(pair, output_root, gates, labels, track_path, *, real_control_flags=None, reference_kind=None):
+def compare(pair, output_root, gates, labels, track_path, *, real_control_flags=None, reference_kind=None,
+            hil_source="computer_truth"):
     chosen = selected_inputs(pair)
     datasets = []
     for kind, color, path in chosen:
-        frame, profile = load_frame(path, kind)
+        frame, profile = load_frame(path, kind, hil_source=hil_source if kind == "HIL" else "computer_truth")
         if kind == "REAL" and real_control_flags is not None:
             frame, profile = select_real_control_segment(frame, profile, real_control_flags)
         passage = passages_for(frame, gates, labels, kind)
@@ -152,7 +153,8 @@ def compare(pair, output_root, gates, labels, track_path, *, real_control_flags=
               "首门局部图以各自首门为起点，并按最短门段截取；窗口内记录不插值。",
               "", "日志起点各自归零不表示物理同步；相同时间不一定是相同赛道位置，因此不计算逐点误差。"
               "全部门匹配不保证连续完整圈；门框 1.5 m × 1.5 m，按位置点判定，未考虑机体尺寸。",
-              "", "HIL 使用 pos/vel，SITL 和 REAL 使用 extPos/extVel；假定同一 NED 坐标与 w,x,y,z 四元数。"
+              "", "HIL 来源 " + str(next((d["profile"].get("hil_source") for d in datasets if d["kind"] == "HIL"), "未使用"))
+              + "；SITL 和 REAL 使用 extPos/extVel；假定同一 NED 坐标与姿态约定。"
               "需核实坐标系和所选飞行区间；电机单位及通道映射未确认，不做数值差分。",
               "", "均值按样本计，航向普通均值不是圆周均值；图可能抽样，统计表使用全量样本。"]
     (out / "分析说明.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -163,13 +165,15 @@ def compare(pair, output_root, gates, labels, track_path, *, real_control_flags=
 def main():
     parser = argparse.ArgumentParser(description="按配置对比 HIL、SITL 和实飞中的任意两种或三种 CSV")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG), help="配置 JSON；路径相对工作区根目录")
+    parser.add_argument("--hil-source", choices=("computer_truth", "blackbox_ext"), help="覆盖配置中的 HIL 数据来源")
     args = parser.parse_args()
     config, gates, labels = load_config(args.config)
     setup_plots()
     root = resolve_path(config["compare_output_root"])
     results, overview = [], []
     for pair in config["pairs"]:
-        datasets, plot_end = compare(pair, root, gates, labels, config["track_config"])
+        datasets, plot_end = compare(pair, root, gates, labels, config["track_config"],
+                                     hil_source=args.hil_source or config.get("hil_source", "computer_truth"))
         name = " / ".join(d["path"].stem for d in datasets)
         for d in datasets:
             s, segment = d["summary"], d["segment"]

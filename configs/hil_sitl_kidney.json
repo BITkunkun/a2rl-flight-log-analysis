@@ -1,4 +1,5 @@
 {
+  "hil_source": "computer_truth",
   "track_config": "configs/sitl_kidney_track.json",
   "hil_output_root": "reports/hil_analysis",
   "compare_output_root": "reports/hil_sitl_comparison",

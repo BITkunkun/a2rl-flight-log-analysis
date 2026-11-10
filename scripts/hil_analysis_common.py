@@ -34,18 +34,20 @@ def load_config(path: str | Path) -> tuple[dict, np.ndarray, list[str]]:
     return config, gates, [f"Gate {i:02d}" for i in range(1, len(gates) + 1)]
 
 
-def load_frame(path: Path, kind: str) -> tuple[pd.DataFrame, dict]:
+def load_frame(path: Path, kind: str, *, hil_source: str = "computer_truth") -> tuple[pd.DataFrame, dict]:
     """Read HIL truth, SITL, or flight CSV using explicit signal sources."""
     if kind not in ("HIL", "SITL", "REAL"):
         raise ValueError(f"未知数据类型: {kind}")
-    position = "extPos" if kind in ("SITL", "REAL") else "pos"
-    velocity = "extVel" if kind in ("SITL", "REAL") else "vel"
+    if hil_source not in ("computer_truth", "blackbox_ext"):
+        raise ValueError("HIL 来源只能是 computer_truth 或 blackbox_ext")
+    position = ("extPos" if hil_source == "blackbox_ext" else "pos") if kind == "HIL" else ("extPos" if kind in ("SITL", "REAL") else "pos")
+    velocity = ("extVel" if hil_source == "blackbox_ext" else "vel") if kind == "HIL" else ("extVel" if kind in ("SITL", "REAL") else "vel")
     command = "command" if kind == "HIL" else "motor"
     header = pd.read_csv(path, nrows=0).columns
     time_col = "timeS" if "timeS" in header else "timeUs"
     required = [time_col] + [f"{p}[{i}]" for p in (position, velocity) for i in range(3)]
     ext_att = [f"extAtt[{i}]" for i in range(3)]
-    use_ext_att = kind in ("SITL", "REAL") and set(ext_att).issubset(header)
+    use_ext_att = (kind == "HIL" and hil_source == "blackbox_ext") or (kind in ("SITL", "REAL") and set(ext_att).issubset(header))
     attitude = ext_att if use_ext_att else [f"quat[{i}]" for i in range(4)]
     required += attitude
     missing = sorted(set(required) - set(header))
@@ -98,6 +100,7 @@ def load_frame(path: Path, kind: str) -> tuple[pd.DataFrame, dict]:
         "max_sample_interval_s": float(np.max(np.diff(time))),
         "position_source": position, "velocity_source": velocity,
         "attitude_source": attitude_source,
+        "hil_source": hil_source if kind == "HIL" else None,
         "command_source": command, "omega_source": "omega",
         "coordinate_assumption": "NED, height = -z; meters and seconds",
         "motor_units_and_channel_mapping": "unverified; raw values only",

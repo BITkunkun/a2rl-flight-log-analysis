@@ -9,7 +9,7 @@
 | 场景 | 脚本 | 主要结果 |
 | --- | --- | --- |
 | SITL 单独分析 | `scripts/analyze_sitl_log.py` | 轨迹、速度、高度、航向、过门、位置设定值差异和电机 |
-| HIL 单独分析 | `scripts/analyze_hil_log.py` | 仿真轨迹、速度、姿态、电机与过门；绘图最多前 25 秒 |
+| HIL 单独分析 | `scripts/analyze_hil_log.py` | 可选电脑仿真或 Blackbox 字段；轨迹、速度、姿态、电机与过门 |
 | 手持单独分析 | `scripts/analyze_hand_log.py` | 无桨手持轨迹、位置、速度、姿态、角速度和电机 |
 | 手持与 SITL | `scripts/compare_hand_sitl.py` | 双方轨迹和控制量对比、加桨趋势和电机指令轨迹的粗略预测 |
 | 实飞与 SITL | `scripts/compare_real_sitl_logs.py` | 实飞模式分段、轨迹、姿态、设定值差异、电机和过门 |
@@ -33,14 +33,15 @@ python -m pip install -r requirements.txt
 | 数据 | 时间 | 位置和速度 | 姿态及其他字段 |
 | --- | --- | --- | --- |
 | SITL 单独分析 | `timeS` 或 `timeUs` | 优先 `extPos[0..2]` / `extVel[0..2]`，分别回退到 `pos/vel`、`ekf_pos/ekf_vel` | 优先 `extAtt[0..2]`，否则 `quat[0..3]` 或 `ekf_att`；可选设定值、电机和转速 |
-| HIL truth | `timeS` 或 `timeUs` | `pos[0..2]` / `vel[0..2]` | `quat[0..3]`；可选 `command[0..3]`、`omega[0..3]` |
+| HIL 电脑仿真 | `timeS` 或 `timeUs` | `pos[0..2]` / `vel[0..2]` | `quat[0..3]`；可选 `command[0..3]`、`omega[0..3]` |
+| HIL Blackbox | `timeS` 或 `timeUs` | `extPos[0..2]` / `extVel[0..2]` | `extAtt[0..2]`（roll/pitch/yaw） |
 | 通用对比中的 SITL | `timeS` 或 `timeUs` | `extPos[0..2]` / `extVel[0..2]` | 优先 `extAtt[0..2]`，否则 `quat[0..3]`；可选 `motor[0..3]`、`omega[0..3]` |
 | 通用对比中的实飞 | `timeS` 或 `timeUs` | `extPos[0..2]` / `extVel[0..2]` | 优先 `extAtt[0..2]`，否则 `quat[0..3]`；控制段三方对比还需要 `flightModeFlags` |
 | 无桨手持 | `timeS` 或 `timeUs` | 优先 `extPos/extVel`，回退 `ekf_pos/ekf_vel`、`pos/vel` | `quat` 或 `extAtt/ekf_att`；可选陀螺仪、电机和 `omegaUnfiltered` |
 
 实飞/SITL 专项对比的实飞侧使用 `extPos/extVel`，字段缺失时会报错；SITL 侧优先 `extPos/extVel`，允许按脚本中的顺序回退。实飞和 SITL 姿态优先采用外部姿态 `extAtt`，否则使用四元数 `quat`。手持对比的电机预测需要相应四路电机字段。
 
-赛道使用 NED 坐标，Z 向下；坐标单位为米，时间为秒，四元数按 `[w, x, y, z]` 解释。请在使用前确认自己的日志和赛道使用相同的坐标约定。HIL 使用电脑仿真的 truth CSV，不需要 Blackbox。
+赛道使用 NED 坐标，Z 向下；坐标单位为米，时间为秒，四元数按 `[w, x, y, z]` 解释。请在使用前确认自己的日志和赛道使用相同的坐标约定。HIL 数据源选择见 [HIL数据源说明.md](HIL数据源说明.md)。
 
 ## 配置和运行
 

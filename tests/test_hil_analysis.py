@@ -221,6 +221,29 @@ class HilAnalysisTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "timeS"):
                 load_frame(path, "HIL")
 
+    def test_hil_source_selects_truth_or_blackbox_ext_fields(self):
+        data = {"timeS": [0., 1.]}
+        for prefix, value in (("pos", 1.), ("vel", 2.), ("extPos", 3.), ("extVel", 4.)):
+            for i in range(3):
+                data[f"{prefix}[{i}]"] = [value, value]
+        for i in range(4):
+            data[f"quat[{i}]"] = [1. if i == 0 else 0.] * 2
+        data.update({f"extAtt[{i}]": [0.25 * (i + 1)] * 2 for i in range(3)})
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "data.csv"
+            pd.DataFrame(data).to_csv(path, index=False)
+            truth, truth_profile = load_frame(path, "HIL")
+            blackbox, blackbox_profile = load_frame(path, "HIL", hil_source="blackbox_ext")
+            self.assertEqual(truth.pos_x_m.iloc[0], 1.)
+            self.assertEqual(blackbox.pos_x_m.iloc[0], 3.)
+            self.assertEqual(blackbox.vel_x_mps.iloc[0], 4.)
+            self.assertAlmostEqual(blackbox.roll_deg.iloc[0], np.rad2deg(0.25))
+            self.assertEqual(truth_profile["hil_source"], "computer_truth")
+            self.assertEqual(blackbox_profile["hil_source"], "blackbox_ext")
+            pd.DataFrame(data).drop(columns=[f"extAtt[{i}]" for i in range(3)]).to_csv(path, index=False)
+            with self.assertRaisesRegex(ValueError, "extAtt"):
+                load_frame(path, "HIL", hil_source="blackbox_ext")
+
 
 if __name__ == "__main__":
     unittest.main()

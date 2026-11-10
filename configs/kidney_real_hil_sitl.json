@@ -1,4 +1,5 @@
 {
+  "hil_source": "computer_truth",
   "track_config": "configs/sitl_kidney_track.json",
   "compare_output_root": "reports/real_hil_sitl_comparison",
   "real_control_flags": [12803, 12291],
