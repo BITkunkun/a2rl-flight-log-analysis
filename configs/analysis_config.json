@@ -1,0 +1,16 @@
+{
+  "track_config": "configs/sitl_kidney_track.json",
+  "output_root": "reports/kidney_speed6_1028_unified",
+  "control_flags": [12803, 12291],
+  "datasets": {
+    "SITL": {
+      "csv": "data/raw/sitl/Kidney_1023/M23_kidney_speed6_1028.csv"
+    },
+    "HIL": {
+      "csv": "data/raw/hil/M23_kidney_speed6_1028_HIL.csv"
+    },
+    "REAL": {
+      "csv": "data/raw/real/Real_Kidney_speed6_1028.csv"
+    }
+  }
+}

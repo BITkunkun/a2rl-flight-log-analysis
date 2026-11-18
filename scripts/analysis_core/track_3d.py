@@ -1,6 +1,8 @@
+"""Shared ordered gate geometry, retained from the earlier analysis scripts."""
 from __future__ import annotations
 
 from collections import defaultdict
+from io import BytesIO
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -8,27 +10,8 @@ import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
 
-
 GATE_WIDTH_M = 1.5
 GATE_HEIGHT_M = 1.5
-DEFAULT_GATES_NED = np.array(
-    [
-        [4.0, 0.0, -1.50],
-        [2.0, 2.2, -1.50],
-        [-1.1, 2.2, -1.50],
-        [-5.0, 0.0, -1.50],
-        [-1.1, -2.2, -1.50],
-        [2.0, -2.2, -1.50],
-        [4.0, 0.0, -1.50],
-        [2.0, 2.2, -1.50],
-        [-1.1, 2.2, -1.50],
-        [-5.0, 0.0, -4.17],
-        [-1.1, -2.2, -1.50],
-        [2.0, -2.2, -1.50],
-    ],
-    dtype=float,
-)
-DEFAULT_GATE_LABELS = [f"Gate {idx:02d}" for idx in range(1, len(DEFAULT_GATES_NED) + 1)]
 
 
 def normalize_gates(gates: np.ndarray | list[list[float]]) -> np.ndarray:
@@ -205,9 +188,7 @@ def plot_trajectory_gate_3d(
     output_path: Path,
     max_points: int,
     title: str,
-    anomaly_intervals: list[dict | None] | None = None,
 ) -> Path:
-    from anomaly_annotations import finish_annotated_layout, mark_trajectory_interval, save_figure
     centers = normalize_gates(gates)
     gate_labels = normalize_gate_labels(labels, len(centers))
     normals = gate_normals(gates)
@@ -223,7 +204,7 @@ def plot_trajectory_gate_3d(
         margin = max((upper - lower) * 0.08, 0.25)
         limits.append((lower - margin, upper + margin))
 
-    for idx, (ax, (name, color, df), passage_table) in enumerate(zip(axes, datasets, passages)):
+    for ax, (name, color, df), passage_table in zip(axes, datasets, passages):
         if len(df) > max_points:
             indices = np.unique(np.linspace(0, len(df) - 1, max_points).astype(int))
             plotted = df.iloc[indices]
@@ -257,9 +238,6 @@ def plot_trajectory_gate_3d(
         ax.set_box_aspect([limits[0][1] - limits[0][0], limits[1][1] - limits[1][0], limits[2][1] - limits[2][0]])
         ax.view_init(elev=27, azim=-58)
         ax.grid(True, alpha=0.25)
-        if anomaly_intervals and anomaly_intervals[idx]:
-            mark_trajectory_interval(ax, df, anomaly_intervals[idx], ("pos_x_m", "pos_y_m", "pos_z_m"))
-            ax.legend(loc="upper left", fontsize=8)
 
     legend = [
         Line2D([0], [0], color=datasets[0][1], lw=1.5, label="飞行轨迹"),
@@ -270,10 +248,9 @@ def plot_trajectory_gate_3d(
     ]
     figure.legend(handles=legend, loc="lower center", ncol=5, frameon=False, fontsize=9)
     figure.suptitle(title, fontsize=15, fontweight="bold")
-    interval = next((item for item in (anomaly_intervals or []) if item), None)
-    if interval:
-        finish_annotated_layout(figure, interval)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(figure, output_path, dpi=220, bbox_inches="tight", bbox_extra_artists=[figure._suptitle])
+    buffer = BytesIO()
+    figure.savefig(buffer, format="png", dpi=180, bbox_inches="tight")
+    output_path.write_bytes(buffer.getvalue())
     plt.close(figure)
     return output_path
